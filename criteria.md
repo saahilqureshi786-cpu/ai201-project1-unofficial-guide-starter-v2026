@@ -23,8 +23,11 @@ For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
 **Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+My corpus contains several different campus-life topics, so I expect retrieval
+to find the correct information for most questions. I chose 4 of 5 because one
+question may be harder to retrieve while still showing that the system works
+consistently.
+
 
 ---
 
@@ -33,9 +36,9 @@ contains the answer.
 Every answer the system produces names at least one source document.
 
 **Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
-
+The system already keeps source-document information with retrieved chunks, so
+every generated answer should be traceable to a source. If an answer has no
+source, I cannot verify where the information came from.
 ---
 
 ## 3. The relevance gate stops out-of-corpus questions
@@ -50,8 +53,9 @@ in at least 4 of 5 tries.
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
 **Why this target:**
-<!-- What did your distances look like when you set the cutoff in Milestone 4?
-     Was there a clean gap, or did the two groups overlap? -->
+The five out-of-scope questions are unrelated to campus life, so the system
+should reject almost all of them. I allow one failure because semantic
+retrieval may occasionally find an unrelated chunk with similar wording.
 
 ---
 
@@ -72,25 +76,27 @@ in at least 4 of 5 tries.
 
 
 **Why this target:**
-
+The model receives retrieved chunks rather than entire documents, so most
+chunks need enough context to make sense by themselves. I allow one imperfect
+chunk because document boundaries may occasionally create an awkward spl
 
 
 ---
 
-## 5. Your choice
+## 5.  Answers contain the expected fact
 
 <!-- YOU WRITE THIS ONE TOO.
 
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
+     For at least 4 of my 5 test questions, the final answer contains the expected
+word or short phrase listed in `questions.py`.
 
 
 
 **Why this target:**
-
+Retrieving a relevant document is not enough if the generated answer misses
+the specific fact being asked for. Four correct answers out of five gives me a
+clear way to measure whether the complete retrieval-and-generation pipeline is
+working.
 
 
 ---
