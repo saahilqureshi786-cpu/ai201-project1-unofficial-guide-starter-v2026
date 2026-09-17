@@ -209,3 +209,5 @@ To be completed in Unit 2 after comparing the before and after results.
 ## What I'd Do Differently
 
 To be completed in Unit 2 after completing the evaluation and improvement cycle.
+
+The final system uses document-level chunks and a 0.6 relevance cutoff selected from retrieval-distance testing.
