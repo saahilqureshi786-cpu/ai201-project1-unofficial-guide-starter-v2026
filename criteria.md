@@ -28,7 +28,6 @@ to find the correct information for most questions. I chose 4 of 5 because one
 question may be harder to retrieve while still showing that the system works
 consistently.
 
-
 ---
 
 ## 2. Every answer names a source
@@ -39,6 +38,7 @@ Every answer the system produces names at least one source document.
 The system already keeps source-document information with retrieved chunks, so
 every generated answer should be traceable to a source. If an answer has no
 source, I cannot verify where the information came from.
+
 ---
 
 ## 3. The relevance gate stops out-of-corpus questions
@@ -73,31 +73,40 @@ retrieval may occasionally find an unrelated chunk with similar wording.
        - "No chunk is shorter than 200 characters, since anything below that
           in my corpus turned out to be a heading with no content under it." -->
 
-
-
 **Why this target:**
 The model receives retrieved chunks rather than entire documents, so most
 chunks need enough context to make sense by themselves. I allow one imperfect
-chunk because document boundaries may occasionally create an awkward spl
+chunk because document boundaries may occasionally create an awkward split.
 
+> **Revised in unit 2:** At least 4 of 5 sampled chunks can be understood as
+> complete thoughts without needing text from another chunk.
+>
+> **Why revised:** My original Criterion 4 did not include a measurable target,
+> so I added a specific count that can be checked consistently.
 
 ---
 
-## 5.  Answers contain the expected fact
+## 5. Answers contain the expected fact
 
 <!-- YOU WRITE THIS ONE TOO.
 
      For at least 4 of my 5 test questions, the final answer contains the expected
 word or short phrase listed in `questions.py`.
 
-
-
 **Why this target:**
 Retrieving a relevant document is not enough if the generated answer misses
 the specific fact being asked for. Four correct answers out of five gives me a
 clear way to measure whether the complete retrieval-and-generation pipeline is
 working.
+-->
 
+> **Revised in unit 2:** For at least 4 of my 5 test questions, the final
+> answer contains the expected word or short phrase listed in `questions.py`.
+>
+> **Why revised:** My original Criterion 5 was accidentally left inside an HTML
+> comment, so it was not available as a visible, measurable criterion. This
+> revision makes the intended check explicit and allows `scorer.py` to evaluate
+> it consistently.
 
 ---
 
