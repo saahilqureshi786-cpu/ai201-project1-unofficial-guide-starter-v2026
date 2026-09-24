@@ -8,8 +8,9 @@ rest of the project if they were wrong:
    defaults to squared L2, and the 0.6 threshold the course uses is calibrated
    against cosine. Getting this wrong makes every distance number meaningless.
 
-2. `search` returns the distance alongside each chunk. Milestone 4 has you
-   compare distances, so they have to be visible.
+2. `search` returns the semantic distance alongside each chunk. The final
+   ordering can use both semantic similarity and BM25 keyword matching, but
+   the cosine distance is still preserved for the relevance gate.
 
 3. The embedding model is the one Chroma bundles, not one loaded through
    `sentence-transformers`. It is the same model — `all-MiniLM-L6-v2`, 384
@@ -18,16 +19,16 @@ rest of the project if they were wrong:
 """
 
 import os
+import re
 import shutil
 from dataclasses import dataclass
 
 # Must be set BEFORE chromadb is imported. Without it, some Chroma versions
-# print "Failed to send telemetry event ..." on every single call — which looks
-# exactly like a real error, isn't one, and cost a previous cohort a lot of
-# confused help-channel messages.
+# print "Failed to send telemetry event ..." on every single call.
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 import chromadb  # noqa: E402
+from rank_bm25 import BM25Okapi
 
 import config
 from chunker import Chunk
@@ -40,7 +41,7 @@ class Result:
     text: str
     source: str
     label: str
-    distance: float   # LOWER IS BETTER. 0.3 is close, 0.9 is unrelated.
+    distance: float  # LOWER IS BETTER. 0.3 is close, 0.9 is unrelated.
     produced_by: str
 
 
@@ -76,7 +77,7 @@ def _sentence_transformer(name: str):
     Unit 2's "try a second embedding model" stretch option comes through here,
     and so does anything you set `EMBEDDING_MODEL` to. This path *does* need
     `sentence-transformers` and a reachable Hugging Face, neither of which the
-    default install has — which is the whole point of the default install.
+    default install has.
     """
     try:
         from sentence_transformers import SentenceTransformer
@@ -105,8 +106,7 @@ def _embedder():
     if _model is not None:
         return _model
 
-    # Used only by this repo's own smoke test, which runs where no model can be
-    # downloaded at all. Never set this yourself.
+    # Used only by this repo's own smoke test.
     if os.getenv("AI201_FAKE_EMBEDDINGS") == "1":
         from _smoke_embedder import FakeEmbedder
 
@@ -122,6 +122,7 @@ def _embedder():
 def embed(texts: list[str]) -> list[list[float]]:
     """Turn text into vectors. Runs on your machine, costs no API quota."""
     vectors = _embedder().encode(texts, show_progress_bar=False)
+
     # sentence-transformers and the smoke stand-in return something with a
     # .tolist(); _OnnxEmbedder has already done that conversion itself.
     return vectors.tolist() if hasattr(vectors, "tolist") else vectors
@@ -157,20 +158,26 @@ def build_index(
 
     collection = client.create_collection(
         name=name,
-        # ⚠️ Do not remove. Chroma defaults to squared L2, and every distance
+        # Do not remove. Chroma defaults to squared L2, and every distance
         # number in this course assumes cosine.
         metadata={"hnsw:space": "cosine"},
     )
 
     batch = 256
+
     for start in range(0, len(chunks), batch):
         window = chunks[start : start + batch]
+
         collection.add(
             ids=[f"{c.source}#{c.index}" for c in window],
             documents=[c.text for c in window],
             embeddings=embed([c.text for c in window]),
             metadatas=[
-                {"source": c.source, "index": c.index, "produced_by": c.produced_by}
+                {
+                    "source": c.source,
+                    "index": c.index,
+                    "produced_by": c.produced_by,
+                }
                 for c in window
             ],
         )
@@ -185,9 +192,14 @@ def search(
     variant: str = "default",
 ) -> list[Result]:
     """
-    Retrieve the chunks closest in meaning to a question.
+    Retrieve chunks using hybrid semantic + BM25 search.
 
-    Returns them nearest-first, each with its distance.
+    Semantic retrieval finds chunks that are close in meaning.
+    BM25 rewards chunks that contain important exact words from the question.
+    Reciprocal Rank Fusion combines both rankings.
+
+    Each returned Result keeps its original semantic cosine distance so the
+    existing relevance gate can still use the same 0.6 threshold.
     """
     top_k = top_k or config.TOP_K
     name = config.collection_name(corpus, variant)
@@ -199,36 +211,111 @@ def search(
             f"No index called '{name}'. Run `python app.py index` first."
         ) from exc
 
+    count = collection.count()
+
+    if count == 0:
+        return []
+
+    # Retrieve the whole corpus in semantic order so that both the semantic
+    # rank and BM25 rank can be compared over the same set of chunks.
     raw = collection.query(
         query_embeddings=embed([question]),
-        n_results=min(top_k, collection.count()),
+        n_results=count,
     )
 
-    results: list[Result] = []
-    for text, meta, distance in zip(
-        raw["documents"][0], raw["metadatas"][0], raw["distances"][0]
+    ids = raw["ids"][0]
+    documents = raw["documents"][0]
+    metadatas = raw["metadatas"][0]
+    distances = raw["distances"][0]
+
+    # Semantic ranking: rank 1 is the most semantically similar document.
+    semantic_rank = {
+        doc_id: rank
+        for rank, doc_id in enumerate(ids, start=1)
+    }
+
+    # Simple tokenizer for BM25 keyword matching.
+    def tokenize(text: str) -> list[str]:
+        return re.findall(r"[a-z0-9$]+", text.lower())
+
+    tokenized_documents = [
+        tokenize(document)
+        for document in documents
+    ]
+
+    bm25 = BM25Okapi(tokenized_documents)
+    bm25_scores = bm25.get_scores(tokenize(question))
+
+    # Highest BM25 score receives rank 1.
+    bm25_order = sorted(
+        range(len(ids)),
+        key=lambda index: float(bm25_scores[index]),
+        reverse=True,
+    )
+
+    bm25_rank = {
+        ids[index]: rank
+        for rank, index in enumerate(bm25_order, start=1)
+    }
+
+    # Build the Result objects while preserving each chunk's semantic distance.
+    results_by_id: dict[str, Result] = {}
+
+    for doc_id, text, meta, distance in zip(
+        ids,
+        documents,
+        metadatas,
+        distances,
     ):
-        results.append(
-            Result(
-                text=text,
-                source=str(meta.get("source", "unknown")),
-                label=f"{meta.get('source', 'unknown')}#{meta.get('index', 0)}",
-                distance=float(distance),
-                produced_by=str(meta.get("produced_by", "unknown")),
-            )
+        meta = meta or {}
+
+        results_by_id[doc_id] = Result(
+            text=text,
+            source=str(meta.get("source", "unknown")),
+            label=f"{meta.get('source', 'unknown')}#{meta.get('index', 0)}",
+            distance=float(distance),
+            produced_by=str(meta.get("produced_by", "unknown")),
         )
-    return results
+
+    # Reciprocal Rank Fusion combines semantic and keyword rankings.
+    #
+    # A document receives credit for ranking highly in either system.
+    # 60 is a common RRF constant and prevents one extremely high rank from
+    # completely dominating the combined score.
+    rrf_k = 60
+
+    def hybrid_score(doc_id: str) -> float:
+        semantic_part = 1 / (rrf_k + semantic_rank[doc_id])
+        keyword_part = 1 / (rrf_k + bm25_rank[doc_id])
+
+        return semantic_part + keyword_part
+
+    ranked_ids = sorted(
+        ids,
+        key=hybrid_score,
+        reverse=True,
+    )
+
+    return [
+        results_by_id[doc_id]
+        for doc_id in ranked_ids[:top_k]
+    ]
 
 
-def index_exists(corpus: str | None = None, variant: str = "default") -> bool:
-    """Is there an index here to search, without searching it?
+def index_exists(
+    corpus: str | None = None,
+    variant: str = "default",
+) -> bool:
+    """
+    Is there an index here to search, without searching it?
 
     `serve.py`'s health check asks this. It deliberately does not embed
-    anything: loading the embedding model takes 80 MB and a few seconds, and a
-    health check that heavy is a health check nobody can afford to call.
+    anything: loading the embedding model takes 80 MB and a few seconds.
     """
     try:
-        collection = _client().get_collection(config.collection_name(corpus, variant))
+        collection = _client().get_collection(
+            config.collection_name(corpus, variant)
+        )
         return collection.count() > 0
     except Exception:
         return False
