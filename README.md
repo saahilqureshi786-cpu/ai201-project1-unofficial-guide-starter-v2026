@@ -155,59 +155,134 @@ unnecessarily.
 
 ## Run Log — Before
 
+Baseline evidence: `results/run_2026-09-23_1937_before.md`
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
-|---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. Chunks contain enough standalone context | 4 of 5 |  |  |  |  |
-| 5. Answers contain the expected fact | 4 of 5 |  |  |  |  |
+|---|---:|---:|---:|---:|---|
+| 1. Retrieved chunks contain the answer | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5/5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks are understandable on their own | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 5. Answers contain the expected fact | 4/5 | 5/5 | 5/5 | 5/5 | MET |
 
 ## Verdicts
 
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 | Retrieved chunks contain the answer |  |  |
-| 2 | Every answer names a source |  |  |
-| 3 | Gate stops out-of-corpus questions |  |  |
-| 4 | Chunks contain enough standalone context |  |  |
-| 5 | Answers contain the expected fact |  |  |
+| 1 | Retrieved chunks contain the answer | MET | All 5 questions retrieved an answer-bearing document, exceeding the 4/5 target. |
+| 2 | Every answer names a source | MET | All generated answers named at least one source document. |
+| 3 | Gate stops out-of-corpus questions | MET | The gate refused all 5 of 5 out-of-scope questions, exceeding the 4/5 target. |
+| 4 | Sampled chunks are understandable on their own | MET | All 5 sampled chunks were complete enough to understand independently. |
+| 5 | Answers contain the expected fact | MET | All 5 questions passed in all 3 runs. |
 
 ## Diagnoses
 
-To be completed in Unit 2 after running the before evaluation and comparing the
-results against the five acceptance criteria.
+None of the five acceptance criteria were missed.
+
+Because all five criteria were MET, I looked for a target that was too loose. Criterion 1 only required the answer-bearing chunk to appear somewhere in the retrieved results.
+
+A tighter target would be:
+
+> For at least 4 of 5 test questions, the top-ranked retrieved chunk contains the answer.
+
+The baseline system met this tighter target for only 2 of 5 questions.
+
+**Pipeline stage:** Retrieval
+
+**Mechanism:** Semantic retrieval usually found the correct document, but similar campus documents sometimes ranked above the exact document containing the requested fact.
 
 ## The Improvement
 
 **What I changed:**
 
-To be completed in Unit 2 after diagnosing any criteria that were missed.
+I changed `store.py::search` from semantic-only retrieval to hybrid retrieval using:
+
+1. Semantic vector ranking
+2. BM25 keyword ranking
+3. Reciprocal Rank Fusion to combine both rankings
 
 **Why I picked it:**
 
-To be completed after identifying which pipeline stage caused the problem.
+The baseline system usually retrieved the correct document, but it was not always ranked first. I wanted to test whether adding keyword matching would improve ranking for exact terms such as parking lots, adviser registration, and Morrow House.
 
 ### Run Log — After
 
+After evidence: `results/run_2026-09-23_2052_after.md`
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
-|---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. Chunks contain enough standalone context | 4 of 5 |  |  |  |  |
-| 5. Answers contain the expected fact | 4 of 5 |  |  |  |  |
+|---|---:|---:|---:|---:|---|
+| 1. Retrieved chunks contain the answer | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5/5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks are understandable on their own | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 5. Answers contain the expected fact | 4/5 | 5/5 | 5/5 | 5/5 | MET |
 
 **Did it help?**
 
-To be completed in Unit 2 after running the after evaluation.
+The hybrid retrieval change did not improve the tighter top-ranked retrieval target.
+
+Before: correct answer-bearing document ranked first for 2/5 questions.
+
+After: correct answer-bearing document ranked first for 2/5 questions.
+
+All five original acceptance criteria still passed, and the relevance gate continued to refuse 5/5 out-of-scope questions.
+
+### Real Output
+
+Produced by `run_eval.py::main` using retrieval from `store.py::search`.
+
+```text
+When do housing lottery numbers come out?
+run 1: pass
+run 2: pass
+run 3: pass
+
+How are juniors and seniors ordered in the housing lottery?
+run 1: pass
+run 2: pass
+run 3: pass
+
+How long does it usually take west lot parking permits to sell out?
+run 1: pass
+run 2: pass
+run 3: pass
+
+How far in advance should students book an adviser before registration?
+run 1: pass
+run 2: pass
+run 3: pass
+
+How much does laundry cost to wash a load at Morrow House?
+run 1: pass
+run 2: pass
+run 3: pass
+
+gate refused 5 of 5
 
 ## What's Still Broken
 
-To be completed in Unit 2 after comparing the before and after results.
+None of the original five acceptance criteria are currently broken.
+
+The remaining weakness is the tighter retrieval-ranking target:
+
+> For at least 4 of 5 test questions, the top-ranked retrieved chunk contains the answer.
+
+The system still achieves only 2/5 on this tighter target.
+
+If I continued, I would test weighted semantic/BM25 scoring or boost exact entity terms such as building names, parking lots, and administrative topics.
 
 ## What I'd Do Differently
 
-To be completed in Unit 2 after completing the evaluation and improvement cycle.
+If I started Unit 1 again, I would make Criterion 1 stricter from the beginning.
 
-The final system uses document-level chunks and a 0.6 relevance cutoff selected from retrieval-distance testing.
+Instead of only checking whether the correct chunk appears somewhere in the retrieved results, I would measure whether it ranks first.
+
+I would also add top-1 retrieval accuracy directly to the evaluator so ranking quality is measured automatically instead of being checked manually.
+
+For a second improvement, I would test weighted semantic/BM25 fusion instead of equal Reciprocal Rank Fusion.
+
+## How I Used AI — Unit 2
+
+I used ChatGPT to help interpret the Unit 2 rubric, diagnose the retrieval-ranking weakness, and implement the hybrid semantic + BM25 retrieval experiment.
+
+I verified the suggested changes myself by running `python test.py` and the full before/after evaluations. The hybrid search did not improve the tighter top-ranked retrieval target, and I reported that result rather than changing the conclusion.s
