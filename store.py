@@ -284,11 +284,11 @@ def search(
     # completely dominating the combined score.
     rrf_k = 60
 
-    def hybrid_score(doc_id: str) -> float:
-        semantic_part = 1 / (rrf_k + semantic_rank[doc_id])
-        keyword_part = 1 / (rrf_k + bm25_rank[doc_id])
+   def hybrid_score(doc_id: str) -> float:
+    semantic_part = 1 / (rrf_k + semantic_rank[doc_id])
+    keyword_part = 1 / (rrf_k + bm25_rank[doc_id])
 
-        return semantic_part + keyword_part
+    return semantic_part + (1.5 * keyword_part)
 
     ranked_ids = sorted(
         ids,
