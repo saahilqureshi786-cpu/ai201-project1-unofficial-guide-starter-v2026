@@ -259,6 +259,48 @@ run 3: pass
 
 gate refused 5 of 5
 
+```
+
+## Stretch Improvement — Declared Before Build
+
+For my second measured improvement, I will test weighted Reciprocal Rank Fusion
+instead of giving semantic retrieval and BM25 equal influence.
+
+My hypothesis is that giving BM25 slightly more weight may improve the tighter
+top-1 retrieval target because several questions contain exact entity terms such
+as building names, parking lots, and administrative topics.
+
+### Run Log — Weighted RRF
+
+Evidence: `results/run_2026-10-04_2120_weighted_rrf.md`
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---:|---:|---:|---:|---|
+| 1. Retrieved chunks contain the answer | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5/5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks are understandable on their own | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+| 5. Answers contain the expected fact | 4/5 | 5/5 | 5/5 | 5/5 | MET |
+
+### Did the Second Improvement Help?
+
+Yes.
+
+I changed the hybrid Reciprocal Rank Fusion scoring so that the BM25 keyword
+component receives 1.5 times the weight of the semantic component.
+
+The original semantic + BM25 RRF system achieved the tighter top-1
+answer-bearing retrieval target for only 2 of 5 questions.
+
+After weighting BM25 more heavily, the top-ranked chunk contained the expected
+answer for all 5 of 5 questions.
+
+**Before:** 2/5 top-1 answer-bearing retrieval  
+**After weighted RRF:** 5/5 top-1 answer-bearing retrieval
+
+The original five acceptance criteria also remained MET, and the relevance gate
+continued to refuse 5 of 5 out-of-scope questions.
+
 ## What's Still Broken
 
 None of the original five acceptance criteria are currently broken.
