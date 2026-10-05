@@ -301,30 +301,38 @@ answer for all 5 of 5 questions.
 The original five acceptance criteria also remained MET, and the relevance gate
 continued to refuse 5 of 5 out-of-scope questions.
 
+
 ## What's Still Broken
 
 None of the original five acceptance criteria are currently broken.
 
-The remaining weakness is the tighter retrieval-ranking target:
+The weighted RRF improvement also fixed the tighter retrieval-ranking weakness:
 
 > For at least 4 of 5 test questions, the top-ranked retrieved chunk contains the answer.
 
-The system still achieves only 2/5 on this tighter target.
+The system now achieves 5/5 on this tighter target.
 
-If I continued, I would test weighted semantic/BM25 scoring or boost exact entity terms such as building names, parking lots, and administrative topics.
+If I continued, I would test the weighted approach on a larger question set to
+see whether the improvement generalizes beyond these five evaluation questions.
 
 ## What I'd Do Differently
 
 If I started Unit 1 again, I would make Criterion 1 stricter from the beginning.
 
-Instead of only checking whether the correct chunk appears somewhere in the retrieved results, I would measure whether it ranks first.
+Instead of only checking whether the correct chunk appears somewhere in the
+retrieved results, I would measure whether it ranks first.
 
-I would also add top-1 retrieval accuracy directly to the evaluator so ranking quality is measured automatically instead of being checked manually.
-
-For a second improvement, I would test weighted semantic/BM25 fusion instead of equal Reciprocal Rank Fusion.
+I would also add top-1 retrieval accuracy directly to the evaluator so ranking
+quality is measured automatically instead of being checked manually.
 
 ## How I Used AI — Unit 2
 
-I used ChatGPT to help interpret the Unit 2 rubric, diagnose the retrieval-ranking weakness, and implement the hybrid semantic + BM25 retrieval experiment.
+I used ChatGPT to help interpret the Unit 2 rubric, diagnose the
+retrieval-ranking weakness, and implement the hybrid semantic + BM25 retrieval
+experiment.
 
-I verified the suggested changes myself by running `python test.py` and the full before/after evaluations. The hybrid search did not improve the tighter top-ranked retrieval target, and I reported that result rather than changing the conclusion.s
+I verified the suggested changes myself by running the evaluations and comparing
+the measured results. The first hybrid RRF experiment did not improve top-1
+retrieval, so I reported that result. I then tested a second improvement by
+giving BM25 1.5 times the weight of semantic retrieval. The measured top-1
+answer-bearing retrieval improved from 2/5 to 5/5.
