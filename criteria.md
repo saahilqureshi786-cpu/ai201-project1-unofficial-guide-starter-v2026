@@ -107,10 +107,13 @@ working.
 > comment, so it was not available as a visible, measurable criterion. This
 > revision makes the intended check explicit and allows `scorer.py` to evaluate
 > it consistently.
+>
+> **Why this target:** The final answer depends on both retrieval and model
+> generation, so wording can vary even when the correct evidence is retrieved.
+> Requiring 4 of 5 answers to contain the expected fact allows one generation
+> miss while still requiring consistent end-to-end performance.
 
----
-
-<!-- ─────────────────────────────────────────────────────────────────────────
+---─────────────────────────────────────────────────────────────────────────
      UNIT 2 — read this before you change anything above.
 
      If a criterion turns out to be BROKEN rather than merely unmet, you can
