@@ -282,13 +282,13 @@ def search(
     # A document receives credit for ranking highly in either system.
     # 60 is a common RRF constant and prevents one extremely high rank from
     # completely dominating the combined score.
-    rrf_k = 60
+     rrf_k = 60
 
-   def hybrid_score(doc_id: str) -> float:
-    semantic_part = 1 / (rrf_k + semantic_rank[doc_id])
-    keyword_part = 1 / (rrf_k + bm25_rank[doc_id])
+    def hybrid_score(doc_id: str) -> float:
+        semantic_part = 1 / (rrf_k + semantic_rank[doc_id])
+        keyword_part = 1 / (rrf_k + bm25_rank[doc_id])
 
-    return semantic_part + (1.5 * keyword_part)
+        return semantic_part + (1.5 * keyword_part)
 
     ranked_ids = sorted(
         ids,
